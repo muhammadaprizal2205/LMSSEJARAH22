@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="id" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HistoriaLMS - Menjelajahi Masa Lalu, Memahami Masa Kini, Membangun Masa Depan</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        navy: { 800: '#14243D', 900: '#0d1829' },
+                        cream: '#E8DCC3',
+                        gold: '#C6A45C',
+                        softgray: '#F4F6F9',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti & Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .serif-font { font-family: 'Playfair Display', serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #C6A45C; border-radius: 4px; }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        @keyframes walk {
+            0% { transform: translateX(0px) scaleX(1); }
+            50% { transform: translateX(120px) scaleX(1); }
+            100% { transform: translateX(0px) scaleX(-1); }
+        }
+        .animate-walking-mascot { animation: walk 6s ease-in-out infinite; }
+        .hero-bg {
+            background: linear-gradient(rgba(20, 36, 61, 0.90), rgba(13, 24, 41, 0.95)), url('https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+        }
+    </style>
+</head>
+<body class="bg-softgray dark:bg-navy-900 text-gray-800 dark:text-gray-100 min-h-screen flex flex-col selection:bg-gold selection:text-white transition-colors duration-300">
+
+    <div id="app" class="flex flex-col flex-grow"></div>
+
+    <audio id="bgMusic" loop>
+        <source src="https://assets.mixkit.co/music/preview/mixkit-spirit-in-the-woods-139.mp3" type="audio/mp3">
+    </audio>
+
+    <script>
+        // ==========================================
+        // 30 PRE-REGISTERED STUDENTS GENERATOR
+        // ==========================================
+        const firstNames = ["Ahmad", "Budi", "Citra", "Dewi", "Eko", "Fajar", "Gita", "Hadi", "Indah", "Joko", "Kartika", "Lestari", "Muhammad", "Nurdin", "Putri", "Qori", "Rizki", "Siti", "Taufik", "Utami", "Vina", "Wahyu", "Yulia", "Zainal", "Anisa", "Bayu", "Cahyono", "Darmawan", "Erlina", "Farhan"];
+        const lastNames = ["Saputra", "Santoso", "Lestari", "Wibowo", "Pratama", "Kusuma", "Hidayat", "Nugroho", "Rahmawati", "Setiawan", "Utomo", "Wijaya", "Aprizall", "Puspita", "Siregar", "Prasetyo", "Gunawan", "Susanto", "Hartono", "Permana"];
+        
+        let generatedStudents = [];
+        for (let i = 0; i < 30; i++) {
+            const f = firstNames[i % firstNames.length];
+            const l = lastNames[i % lastNames.length];
+            const fullName = `${f} ${l}`;
+            const nisn = `202410${(i+1).toString().padStart(2, '0')}`;
+            generatedStudents.push({
+                id: `stu_${i+1}`,
+                name: fullName,
+                role: 'student',
+                email: `siswa${i+1}@historialms.sch.id`,
+                class: i < 15 ? 'X-IPS-1' : 'X-IPS-2',
+                nisn: nisn,
+                avatar: `https://placehold.co/150x150/14243D/C6A45C?text=${f.substring(0,2).toUpperCase()}`,
+                password: '123',
+                points: 1000 + (i * 15)
+            });
+        }
+
+        const defaultDB = {
+            currentUser: null,
+            authMode: 'landing',
+            theme: 'light',
+            musicPlaying: false,
+            soundEffects: true,
+            activePortalTab: 'dashboard',
+            selectedChapter: 1,
+            quoteIndex: 0,
+            
+            quizState: {
+                currentIdx: 0,
+                score: 0,
+                selectedAnswers: {},
+                isCompleted: false,
+                mascotExpression: 'happy',
+                mascotMessage: 'Gunakan tombol kontrol atau pilih jawaban untuk mengontrol petualangan sejarah!'
+            },
+
+            users: [
+                { id: 'u_admin', name: 'Muhammad Aprizall', role: 'admin', email: 'aprizall@historialms.sch.id', class: 'Admin System', nisn: '000000', avatar: 'https://placehold.co/150x150/14243D/C6A45C?text=MA', password: '123' },
+                { id: 'u_teacher', name: 'Muhammad Aprizall, M.Pd.', role: 'teacher', email: 'guru.aprizall@historialms.sch.id', class: 'Guru Sejarah Kelas X', nisn: '19850101', avatar: 'https://placehold.co/150x150/C6A45C/14243D?text=MA', password: '123' },
+                ...generatedStudents
+            ],
+
+            quotes: [
+                { quote: "Bangsa yang besar adalah bangsa yang menghargai jasa para pahlawannya.", author: "Ir. Soekarno" },
+                { quote: "Sejarah bukan guru yang mengajari masa lalu, melainkan penerang masa depan kita.", author: "Buya Hamka" },
+                { quote: "Barang siapa melupakan sejarah, ia dikutuk untuk mengulanginya kembali.", author: "George Santayana" },
+                { quote: "Menjelajahi masa lalu adalah kunci memahami realitas hari ini dan membangun masa depan.", author: "Muhammad Aprizall" }
+            ],
+
+            chapters: [
+                {
+                    id: 1,
+                    title: "Bab 1: Pengantar Dasar Ilmu Sejarah",
+                    desc: "Pengertian, konsep, akar kata (syajaratun, historia), unsur utama (manusia, ruang, waktu), diakronik & sinkronik.",
+                    videoId: "MD56RYVl-pU", // Requested YouTube Video embedded directly in website
+                    videoTitle: "Konsep Dasar Sejarah: Pengertian, Manusia, Ruang, Waktu, Diakronik, dan Sinkronik",
+                    article: "Sejarah berasal dari bahasa Arab 'syajaratun' yang berarti pohon. Dalam konteks ilmu sosial, sejarah adalah catatan peristiwa yang terjadi pada masa lampau secara sistematis meliputi manusia, ruang, dan waktu. Berpikir diakronik memanjang dalam waktu, sedangkan sinkronik melebar dalam ruang pada waktu tertentu.",
+                    pdfUrl: "#"
+                },
+                {
+                    id: 2,
+                    title: "Bab 2: Penelitian Sejarah",
+                    desc: "Sumber sejarah (primer, sekunder) dan 4 tahapan penelitian: Heuristik, Verifikasi, Interpretasi, dan Historiografi.",
+                    videoId: "3LUnX17yGVY",
+                    videoTitle: "Metodologi & Tahapan Penelitian Sejarah",
+                    article: "Penelitian sejarah memerlukan metodologi ketat. Tahap pertama adalah Heuristik (pengumpulan sumber primer/sekunder), diikuti Verifikasi (uji keabsahan eksternal & internal), Interpretasi (penafsiran fakta), dan Historiografi (penulisan kisah sejarah).",
+                    pdfUrl: "#"
+                },
+                {
+                    id: 3,
+                    title: "Bab 3: Asal-Usul Nenek Moyang & Jalur Rempah",
+                    desc: "Evolusi geologis, jenis manusia purba (Meganthropus, Pithecanthropus, Homo), Proto/Deutero Melayu, & Jalur Rempah.",
+                    videoId: "3LUnX17yGVY",
+                    videoTitle: "Asal-Usul Nenek Moyang & Dinamika Jalur Rempah Nusantara",
+                    article: "Nusantara menjadi pusat peradaban purba dan pertemuan gelombang migrasi Proto Melayu, Deutero Melayu, serta Melanesoid. Dinamika Jalur Rempah juga menghubungkan Nusantara dengan perdagangan global sejak ribuan tahun lalu.",
+                    pdfUrl: "#"
+                },
+                {
+                    id: 4,
+                    title: "Bab 4: Perkembangan Peradaban Awal Dunia",
+                    desc: "Peradaban kuno Asia-Afrika (Mesopotamia, Mesir, Lembah Sungai Indus, Tiongkok) serta Eropa-Amerika (Yunani, Romawi).",
+                    videoId: "3LUnX17yGVY",
+                    videoTitle: "Peradaban Kuno Dunia di Asia, Afrika, dan Eropa",
+                    article: "Peradaban awal dunia di lembah-lembah sungai besar memberikan sumbangan besar bagi sistem tulisan, hukum, astronomi, dan tata kelola pemerintahan yang kemudian memengaruhi peradaban global termasuk Nusantara.",
+                    pdfUrl: "#"
+                },
+                {
+                    id: 5,
+                    title: "Bab 5: Masa Kerajaan Hindu-Buddha di Nusantara",
+                    desc: "Teori masuknya pengaruh Hindu-Buddha, kerajaan-kerajaan besar (Kutai, Sriwijaya, Majapahit), dan akulturasi budaya.",
+                    videoId: "3LUnX17yGVY",
+                    videoTitle: "Kerajaan Hindu-Buddha & Akulturasi Budaya di Nusantara",
+                    article: "Masuknya pengaruh Hindu-Buddha melalui jalur perdagangan melahirkan kerajaan-kerajaan megah di Nusantara seperti Kutai, Tarumanagara, Sriwijaya, dan Majapahit, yang meninggalkan warisan akulturasi candi, sastra, dan sistem sosial.",
+                    pdfUrl: "#"
+                }
+            ],
+
+            announcements: [
+                { id: 'a1', title: 'Ujian Harian Bab 1-5 Kurikulum Merdeka', content: 'Silakan tonton video pembelajaran Bab 1 dan kerjakan 10 kuis game sejarah di portal.', date: '31 Okt 2026', author: 'Muhammad Aprizall, M.Pd.' }
+            ],
+
+            assignments: [
+                { id: 'as1', title: 'Analisis Peristiwa Sejarah (Diakronik vs Sinkronik)', description: 'Buatlah dokumen ringkas yang membandingkan pendekatan diakronik dan sinkronik berdasarkan video pembelajaran Bab 1.', deadline: '2026-11-10 23:59', class: 'X-IPS-1', author: 'Muhammad Aprizall, M.Pd.', attachedFile: 'Modul_Pendukung_Bab1.pdf' }
+            ],
+
+            submissions: [
+                { id: 'sub1', assignmentId: 'as1', studentId: 'stu_1', studentName: 'Ahmad Saputra', nisn: '20241001', className: 'X-IPS-1', fileName: 'Tugas_Diakronik_Ahmad.pdf', date: '2026-10-30 14:30', status: 'Sudah Dinilai', score: 92, feedback: 'Analisis sangat mendalam dan tepat!' }
+            ],
+
+            attendance: generatedStudents.map((stu, i) => ({
+                id: `att_${i+1}`,
+                studentId: stu.id,
+                studentName: stu.name,
+                nisn: stu.nisn,
+                className: stu.class,
+                date: '2026-10-31',
+                time: '07:15:20',
+                photo: `https://placehold.co/300x300/14243D/E8DCC3?text=${encodeURIComponent(stu.name)}+Hadir`,
+                status: 'Hadir'
+            })),
+
+            chats: [
+                { id: 'c1', sender: 'Muhammad Aprizall, M.Pd.', role: 'teacher', text: 'Halo anak-anak, pastikan video pembelajaran Bab 1 ditonton langsung di website dan tugas dikumpulkan tepat waktu!', time: '08:00' }
+            ],
+
+            leaderboard: generatedStudents.map((stu, i) => ({
+                rank: i+1,
+                name: stu.name,
+                class: stu.class,
+                points: 1200 - (i * 10),
+                level: i === 0 ? 'Master Historian' : 'History Genius',
+                avatar: stu.avatar,
+                mascot: i === 0 ? '🦉 Master' : '🦊 Explorer'
+            })),
+
+            subjectFiles: [
+                { id: 'sf1', title: 'RPP Sejarah Kelas X Fase E - Kurikulum Merdeka', category: 'RPP Guru', size: '1.2 MB', uploader: 'Muhammad Aprizall, M.Pd.', date: '2026-10-01' },
+                { id: 'sf2', title: 'Modul Ajar Bab 1: Pengantar Ilmu Sejarah', category: 'Modul Ajar', size: '3.4 MB', uploader: 'Muhammad Aprizall, M.Pd.', date: '2026-10-05' },
+                { id: 'sf3', title: 'Lembar Kerja Peserta Didik (LKPD) Bab 2-3', category: 'LKPD', size: '2.1 MB', uploader: 'Muhammad Aprizall, M.Pd.', date: '2026-10-12' },
+                { id: 'sf4', title: 'Silabus & Capaian Pembelajaran Fase E', category: 'Silabus', size: '1.8 MB', uploader: 'Muhammad Aprizall, M.Pd.', date: '2026-09-15' }
+            ],
+
+            quizzes: [
+                { id: 1, question: "Apa yang dimaksud dengan cara berpikir diakronik dalam sejarah?", options: ["A. Meluas dalam ruang terbatas waktu", "B. Memanjang dalam waktu terbatas ruang", "C. Acak tanpa urutan kronologis", "D. Berfokus hanya pada masa kini"], correct: 1, explanation: "Diakronik berarti memanjang dalam waktu namun terbatas dalam ruang, berfokus pada proses suatu peristiwa dari masa lalu ke masa berikutnya." },
+                { id: 2, question: "Karakteristik utama dari cara berpikir sinkronik adalah...", options: ["A. Mengkaji struktur suatu peristiwa pada waktu tertentu secara meluas", "B. Menceritakan urutan tahun secara kronologis", "C. Mengabaikan kondisi sosial masyarakat", "D. Hanya berfokus pada zaman prasejarah"], correct: 0, explanation: "Sinkronik mengkaji suatu peristiwa meluas dalam ruang pada waktu tertentu tanpa terlalu memikirkan proses perkembangannya." },
+                { id: 3, question: "Tahap awal dalam metodologi penelitian sejarah di mana sejarawan mengumpulkan sumber disebut...", options: ["A. Historiografi", "B. Verifikasi", "C. Heuristik", "D. Interpretasi"], correct: 2, explanation: "Heuristik adalah tahap pencarian dan pengumpulan sumber-sumber sejarah baik primer maupun sekunder." },
+                { id: 4, question: "Kritik eksternal dalam verifikasi sejarah bertujuan untuk menguji...", options: ["A. Keaslian bahan atau fisik sumber sejarah", "B. Isi kebenaran informasi di dalam dokumen", "C. Penafsiran sejarawan", "D. Gaya bahasa penulisan"], correct: 0, explanation: "Kritik eksternal meneliti keaslian fisik sumber (apakah dokumen asli atau palsu), sedangkan kritik internal meneliti isi informasinya." },
+                { id: 5, question: "Bangsa yang membawa kebudayaan Neolitikum ke Nusantara dalam gelombang migrasi awal adalah...", options: ["A. Melanesoid", "B. Proto Melayu", "C. Paleolitikum", "D. Mongoloid modern"], correct: 1, explanation: "Proto Melayu (Melayu Tua) datang membawa kebudayaan batu baru (Neolitikum) sekitar 1500 SM." },
+                { id: 6, question: "Peradaban kuno di lembah Sungai Tigris dan Eufrat adalah...", options: ["A. Mesir Kuno", "B. Mesopotamia", "C. Tiongkok Kuno", "D. Lembah Sungai Indus"], correct: 1, explanation: "Mesopotamia terletak di antara dua sungai besar yaitu Tigris dan Eufrat (di wilayah Irak modern)." },
+                { id: 7, question: "Teori masuknya pengaruh Hindu-Buddha yang menyatakan bahwa kaum pedagang berperan besar adalah teori...", options: ["A. Ksatria", "B. Brahmana", "C. Waisya", "D. Arus Balik"], correct: 2, explanation: "Teori Waisya menyatakan bahwa penyebaran agama Hindu-Buddha dilakukan oleh para pedagang (Waisya) dari India." },
+                { id: 8, question: "Kerajaan maritim bercorak Hindu-Buddha terbesar di Sumatra yang menjadi pusat pembelajaran agama Buddha adalah...", options: ["A. Kutai", "B. Sriwijaya", "C. Tarumanagara", "D. Majapahit"], correct: 1, explanation: "Kerajaan Sriwijaya di Palembang merupakan pusat maritim dan pusat studi agama Buddha di Asia Tenggara." },
+                { id: 9, question: "Apa arti dari kata 'syajaratun' yang menjadi akar asal usul kata sejarah?", options: ["A. Pohon kehidupan", "B. Masa lalu", "C. Catatan raja", "D. Tulisan kuno"], correct: 0, explanation: "'Syajaratun' adalah bahasa Arab yang berarti pohon, mengilustrasikan silsilah, pertumbuhan, dan akar peristiwa masa lalu." },
+                { id: 10, question: "Tahap akhir dari penulisan sejarah di mana sejarawan menyusun kisah secara sistematis disebut...", options: ["A. Heuristik", "B. Historiografi", "C. Verifikasi", "D. Kritik"], correct: 1, explanation: "Historiografi adalah penulisan sejarah (historical writing) sebagai tahap puncak penelitian sejarah." }
+            ]
+        };
+
+        let db = JSON.parse(localStorage.getItem('historialms_db')) || defaultDB;
+        function saveDB() {
+            localStorage.setItem('historialms_db', JSON.stringify(db));
+        }
+
+        function toggleTheme() {
+            db.theme = db.theme === 'light' ? 'dark' : 'light';
+            document.documentElement.classList.toggle('dark', db.theme === 'dark');
+            saveDB();
+            renderApp();
+        }
+
+        function toggleMusic() {
+            const audio = document.getElementById('bgMusic');
+            db.musicPlaying = !db.musicPlaying;
+            if (db.musicPlaying) {
+                audio.play().catch(e => console.log(e));
+            } else {
+                audio.pause();
+            }
+            saveDB();
+            renderApp();
+        }
+
+        function playSound(type) {
+            if (!db.soundEffects) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                if (type === 'correct') {
+                    osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+                    osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
+                    osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2);
+                } else if (type === 'jump') {
+                    osc.frequency.setValueAtTime(300, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.2);
+                } else {
+                    osc.frequency.setValueAtTime(220, ctx.currentTime);
+                    osc.frequency.setValueAtTime(180, ctx.currentTime + 0.15);
+                }
+                gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+                osc.start(); osc.stop(ctx.currentTime + 0.35);
+            } catch(e) {}
+        }
+
+        function renderApp() {
+            document.documentElement.classList.toggle('dark', db.theme === 'dark');
+            const root = document.getElementById('app');
+            
+            if (!db.currentUser) {
+                if (db.authMode === 'login' || db.authMode === 'register') {
+                    root.innerHTML = renderAuthScreen();
+                } else {
+                    root.innerHTML = renderLandingPage();
+                }
+            } else if (db.currentUser.role === 'student') {
+                root.innerHTML = renderStudentPortal();
+                setTimeout(() => initStudentCharts(), 100);
+            } else if (db.currentUser.role === 'teacher') {
+                root.innerHTML = renderTeacherPortal();
+                setTimeout(() => initTeacherCharts(), 100);
+            } else if (db.currentUser.role === 'admin') {
+                root.innerHTML = renderAdminPortal();
+            }
+        }
+
+        // ==========================================
+        // AUTHENTICATION SCREEN
+        // ==========================================
+        function renderAuthScreen() {
+            const isLogin = db.authMode === 'login';
+            return `
+                <div class="min-h-screen hero-bg flex flex-col justify-center items-center p-4">
+                    <div class="max-w-md w-full bg-white dark:bg-navy-800 p-8 rounded-3xl shadow-2xl border border-gold/40 space-y-6 relative">
+                        <button onclick="db.authMode = 'landing'; saveDB(); renderApp();" class="absolute top-4 left-4 text-gray-400 hover:text-gold text-xs font-semibold flex items-center space-x-1">
+                            <i class="fa-solid fa-arrow-left"></i><span>Beranda</span>
+                        </button>
+                        
+                        <div class="text-center space-y-2 pt-6">
+                            <div class="w-14 h-14 bg-gold text-navy-900 rounded-2xl mx-auto flex items-center justify-center text-2xl font-bold shadow-lg animate-float">
+                                <i class="fa-solid fa-landmark"></i>
+                            </div>
+                            <h2 class="text-3xl font-bold serif-font text-navy-800 dark:text-cream">HistoriaLMS</h2>
+                            <p class="text-xs text-gray-500">"Menjelajahi Masa Lalu, Memahami Masa Kini, Membangun Masa Depan."</p>
+                        </div>
+
+                        ${isLogin ? `
+                            <form onsubmit="handleLogin(event)" class="space-y-4">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Email Akun / ID</label>
+                                    <input type="email" id="loginEmail" required placeholder="siswa1@historialms.sch.id / guru.aprizall@..." class="w-full p-3 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs focus:outline-none focus:border-gold">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Kata Sandi</label>
+                                    <input type="password" id="loginPass" required placeholder="123" class="w-full p-3 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs focus:outline-none focus:border-gold">
+                                </div>
+                                <button type="submit" class="w-full py-3.5 bg-gold text-navy-900 font-bold rounded-xl text-xs shadow-xl hover:bg-cream transition-all">Masuk Portal</button>
+                                <div class="text-center pt-2">
+                                    <p class="text-xs text-gray-500">Belum punya akun? <span onclick="db.authMode='register'; renderApp();" class="text-gold font-bold cursor-pointer hover:underline">Daftar Akun Baru</span></p>
+                                </div>
+                                <div class="p-3 bg-gold/10 rounded-xl border border-gold/20 text-[11px] text-gray-600 dark:text-gray-300 space-y-1">
+                                    <p class="font-bold text-gold">Demo Akun Cepat:</p>
+                                    <p>• Guru: guru.aprizall@historialms.sch.id (Pass: 123)</p>
+                                    <p>• Siswa: siswa1@historialms.sch.id s.d. siswa30@historialms.sch.id (Pass: 123)</p>
+                                </div>
+                            </form>
+                        ` : `
+                            <form onsubmit="handleRegister(event)" class="space-y-3">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Nama Lengkap</label>
+                                    <input type="text" id="regName" required placeholder="Nama Anda" class="w-full p-2.5 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Email Sekolah</label>
+                                    <input type="email" id="regEmail" required placeholder="nama@historialms.sch.id" class="w-full p-2.5 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">NISN</label>
+                                        <input type="text" id="regNisn" placeholder="202410XX" class="w-full p-2.5 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs">
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Kelas</label>
+                                        <input type="text" id="regClass" placeholder="X-IPS-1" class="w-full p-2.5 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs">
+                                    </div>
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Peran</label>
+                                    <select id="regRole" class="w-full p-2.5 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs">
+                                        <option value="student">Siswa</option>
+                                        <option value="teacher">Guru</option>
+                                    </select>
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Kata Sandi</label>
+                                    <input type="password" id="regPass" required placeholder="••••••••" class="w-full p-2.5 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs">
+                                </div>
+                                <button type="submit" class="w-full py-3 bg-gold text-navy-900 font-bold rounded-xl text-xs shadow-xl hover:bg-cream transition-all">Daftar Akun Baru</button>
+                                <div class="text-center pt-2">
+                                    <p class="text-xs text-gray-500">Sudah punya akun? <span onclick="db.authMode='login'; renderApp();" class="text-gold font-bold cursor-pointer hover:underline">Masuk</span></p>
+                                </div>
+                            </form>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const pass = document.getElementById('loginPass').value;
+            const found = db.users.find(u => u.email === email && u.password === pass);
+            if (found) {
+                db.currentUser = found;
+                saveDB();
+                renderApp();
+            } else {
+                alert('Email atau kata sandi salah. Coba gunakan demo akun.');
+            }
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('regName').value;
+            const email = document.getElementById('regEmail').value;
+            const nisn = document.getElementById('regNisn').value || '202499';
+            const className = document.getElementById('regClass').value || 'X-IPS-1';
+            const role = document.getElementById('regRole').value;
+            const pass = document.getElementById('regPass').value;
+
+            const newUser = {
+                id: 'u_' + Date.now(),
+                name, email, nisn, class: className, role,
+                avatar: `https://placehold.co/150x150/14243D/C6A45C?text=${name.substring(0,2).toUpperCase()}`,
+                password: pass,
+                points: 1000
+            };
+            db.users.push(newUser);
+            db.currentUser = newUser;
+            saveDB();
+            alert('Akun berhasil dibuat dan otomatis terdaftar!');
+            renderApp();
+        }
+
+        function logout() {
+            db.currentUser = null;
+            saveDB();
+            renderApp();
+        }
+
+        // ==========================================
+        // 10-STEP LANDING PAGE
+        // ==========================================
+        function renderLandingPage() {
+            return `
+                <header class="bg-navy-800 text-white sticky top-0 z-50 shadow-xl border-b border-gold/30">
+                    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+                        <div class="flex items-center space-x-3 cursor-pointer" onclick="renderApp()">
+                            <div class="w-10 h-10 bg-gold text-navy-900 rounded-xl flex items-center justify-center font-bold text-xl shadow-lg animate-float">
+                                <i class="fa-solid fa-landmark"></i>
+                            </div>
+                            <div>
+                                <h1 class="text-xl font-bold tracking-wide serif-font text-cream">HistoriaLMS</h1>
+                                <p class="text-xs text-gold">Kelas X Kurikulum Merdeka</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <button onclick="toggleTheme()" class="p-2 bg-white/10 rounded-xl text-gold hover:bg-white/20"><i class="fa-solid ${db.theme === 'dark' ? 'fa-sun' : 'fa-moon'}"></i></button>
+                            <button onclick="toggleMusic()" class="px-3 py-1.5 bg-gold/20 text-gold rounded-xl text-xs font-bold flex items-center space-x-1">
+                                <i class="fa-solid fa-music"></i><span>${db.musicPlaying ? 'Musik ON' : 'Musik OFF'}</span>
+                            </button>
+                            <button onclick="db.authMode='login'; renderApp();" class="px-5 py-2.5 bg-gold text-navy-900 rounded-xl text-xs font-bold shadow-md hover:bg-cream">Masuk / Daftar</button>
+                        </div>
+                    </div>
+                </header>
+
+                <main class="flex-grow">
+                    <section class="relative hero-bg text-white py-28 px-4 overflow-hidden">
+                        <div class="max-w-5xl mx-auto text-center space-y-6 relative z-10">
+                            <span class="px-4 py-1.5 bg-gold/20 text-gold rounded-full text-xs font-bold uppercase tracking-widest border border-gold/40 animate-pulse">LMS Sejarah Profesional Kelas X</span>
+                            <h1 class="text-4xl md:text-6xl font-bold serif-font text-cream leading-tight animate-float">
+                                "Menjelajahi Masa Lalu, Memahami Masa Kini, Membangun Masa Depan."
+                            </h1>
+                            <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto">
+                                Platform pembelajaran sejarah interaktif dengan pemutar video YouTube tersemat langsung di website, kuis game kartun berjalan (10 soal), absensi biometrik kamera, dan manajemen tugas dua arah ber-file attachment.
+                            </p>
+                            <div class="flex flex-wrap justify-center gap-4 pt-4">
+                                <button onclick="db.authMode='login'; renderApp();" class="px-8 py-3.5 bg-gold text-navy-900 font-bold rounded-2xl shadow-xl hover:bg-cream transition-all">Mulai Belajar</button>
+                                <a href="#features" class="px-8 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl backdrop-blur-md transition-all border border-white/20">Jelajahi Fitur</a>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="features" class="py-16 px-4 bg-softgray dark:bg-navy-900">
+                        <div class="max-w-6xl mx-auto text-center space-y-12">
+                            <div class="space-y-2">
+                                <span class="text-gold font-bold text-sm uppercase tracking-wider">Keunggulan</span>
+                                <h2 class="text-3xl font-bold serif-font text-navy-800 dark:text-cream">Fitur Unggulan Kelas Dunia</h2>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                <div class="bg-white dark:bg-navy-800 p-8 rounded-3xl shadow-md border border-gold/20 space-y-4 text-left">
+                                    <div class="w-14 h-14 bg-gold/20 text-gold rounded-2xl flex items-center justify-center text-2xl font-bold"><i class="fa-solid fa-play"></i></div>
+                                    <h3 class="font-bold text-xl text-navy-800 dark:text-cream">Video Pembelajaran Langsung</h3>
+                                    <p class="text-sm text-gray-600 dark:text-gray-300">Video YouTube Bab 1 dapat ditonton langsung di dalam website HistoriaLMS dengan mudah.</p>
+                                </div>
+                                <div class="bg-white dark:bg-navy-800 p-8 rounded-3xl shadow-md border border-gold/20 space-y-4 text-left">
+                                    <div class="w-14 h-14 bg-gold/20 text-gold rounded-2xl flex items-center justify-center text-2xl font-bold"><i class="fa-solid fa-gamepad"></i></div>
+                                    <h3 class="font-bold text-xl text-navy-800 dark:text-cream">Kuis Game Kartun Berjalan</h3>
+                                    <p class="text-sm text-gray-600 dark:text-gray-300">10 soal kuis interaktif dengan maskot kartun berjalan & bersuara (sound effect).</p>
+                                </div>
+                                <div class="bg-white dark:bg-navy-800 p-8 rounded-3xl shadow-md border border-gold/20 space-y-4 text-left">
+                                    <div class="w-14 h-14 bg-gold/20 text-gold rounded-2xl flex items-center justify-center text-2xl font-bold"><i class="fa-solid fa-download"></i></div>
+                                    <h3 class="font-bold text-xl text-navy-800 dark:text-cream">Pusat Unduh E-Book & Modul</h3>
+                                    <p class="text-sm text-gray-600 dark:text-gray-300">Siswa dan guru dapat mengunggah serta mengunduh modul digital Bab 1 sampai 5.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+
+                <footer class="bg-navy-900 text-white border-t border-gold/30 py-12 px-4">
+                    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-gold text-navy-900 rounded-xl flex items-center justify-center font-bold text-xl">
+                                <i class="fa-solid fa-landmark"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold serif-font text-cream">HistoriaLMS</h3>
+                                <p class="text-xs text-gray-400">Pengembang & Guru: Muhammad Aprizall</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-400 text-center">
+                            &copy; 2026 HistoriaLMS. Tagline: "Menjelajahi Masa Lalu, Memahami Masa Kini, Membangun Masa Depan."
+                        </p>
+                    </div>
+                </footer>
+            `;
+        }
+
+        // ==========================================
+        // STUDENT PORTAL
+        // ==========================================
+        function renderStudentPortal() {
+            return `
+                <div class="flex min-h-screen bg-softgray dark:bg-navy-900">
+                    <aside class="w-64 bg-navy-800 text-white flex flex-col shadow-2xl border-r border-gold/20 hidden md:flex">
+                        <div class="p-6 border-b border-gold/20 flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-gold text-navy-900 rounded-xl flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-landmark"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold serif-font text-cream">HistoriaLMS</h3>
+                                <p class="text-xs text-gold">Portal Siswa Kelas X</p>
+                            </div>
+                        </div>
+                        <nav class="flex-grow p-4 space-y-1.5 text-sm overflow-y-auto">
+                            <a href="#" onclick="setStudentTab('dashboard'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'dashboard' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-house w-5"></i><span>Dashboard</span></a>
+                            <a href="#" onclick="setStudentTab('materi'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'materi' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-book-open w-5"></i><span>Materi Bab 1-5 & Video YouTube</span></a>
+                            <a href="#" onclick="setStudentTab('subject_files'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'subject_files' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-folder-open w-5"></i><span>File RPP & Modul</span></a>
+                            <a href="#" onclick="setStudentTab('quizzes'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'quizzes' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-gamepad w-5"></i><span>Game Kartun Kuis</span></a>
+                            <a href="#" onclick="setStudentTab('assignments'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'assignments' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-file-arrow-up w-5"></i><span>Tugas & Penilaian</span></a>
+                            <a href="#" onclick="setStudentTab('attendance'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'attendance' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-camera w-5"></i><span>Absensi Kamera</span></a>
+                            <a href="#" onclick="setStudentTab('ai'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'ai' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-robot w-5"></i><span>Tanya AI & Chat</span></a>
+                            <a href="#" onclick="setStudentTab('leaderboard'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'leaderboard' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-crown w-5"></i><span>Mascot Leaderboard</span></a>
+                        </nav>
+                        <div class="p-4 border-t border-gold/20">
+                            <button onclick="logout()" class="w-full py-2.5 bg-red-500/20 text-red-400 font-bold rounded-xl hover:bg-red-500 hover:text-white transition-all text-sm flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-right-from-bracket"></i><span>Keluar</span>
+                            </button>
+                        </div>
+                    </aside>
+
+                    <div class="flex-grow flex flex-col">
+                        <header class="bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-gold/20 p-4 flex justify-between items-center shadow-sm">
+                            <div class="flex items-center space-x-4">
+                                <img src="${db.currentUser.avatar}" class="w-10 h-10 rounded-full object-cover border border-gold">
+                                <div>
+                                    <h4 class="font-bold text-navy-800 dark:text-cream">Halo, ${db.currentUser.name}</h4>
+                                    <p class="text-xs text-gray-500">Kelas: ${db.currentUser.class} | NISN: ${db.currentUser.nisn}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <button onclick="toggleTheme()" class="p-2 bg-softgray dark:bg-navy-900 rounded-xl text-gold"><i class="fa-solid ${db.theme === 'dark' ? 'fa-sun' : 'fa-moon'}"></i></button>
+                                <button onclick="toggleMusic()" class="px-3 py-1.5 bg-gold/20 text-gold rounded-xl text-xs font-bold"><i class="fa-solid fa-music"></i> ${db.musicPlaying ? 'ON' : 'OFF'}</button>
+                                <button onclick="logout()" class="md:hidden text-red-400 p-2"><i class="fa-solid fa-right-from-bracket"></i></button>
+                            </div>
+                        </header>
+                        <main class="p-6 flex-grow overflow-y-auto">
+                            ${renderStudentTabContent()}
+                        </main>
+                    </div>
+                </div>
+            `;
+        }
+
+        function setStudentTab(tab) {
+            db.activePortalTab = tab;
+            saveDB();
+            renderApp();
+        }
+
+        function selectChapter(chId) {
+            db.selectedChapter = chId;
+            saveDB();
+            renderApp();
+        }
+
+        function renderStudentTabContent() {
+            const tab = db.activePortalTab;
+            if (tab === 'dashboard') {
+                return `
+                    <div class="space-y-6">
+                        <div class="bg-gradient-to-r from-navy-800 to-navy-900 text-white p-8 rounded-3xl shadow-xl border border-gold/30 space-y-3">
+                            <span class="px-3 py-1 bg-gold text-navy-900 rounded-full text-xs font-bold">Portal Siswa Aktif</span>
+                            <h2 class="text-3xl font-bold serif-font text-cream">Selamat Datang di Ruang Belajar Sejarah</h2>
+                            <p class="text-sm text-gray-300 max-w-xl">"Menjelajahi Masa Lalu, Memahami Masa Kini, Membangun Masa Depan."</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="bg-white dark:bg-navy-800 p-6 rounded-3xl shadow-xl border border-gold/30 space-y-4">
+                                <h4 class="font-bold text-lg text-navy-800 dark:text-cream"><i class="fa-solid fa-chart-line text-gold mr-2"></i>Statistik Kemajuan Belajar Bab 1-5</h4>
+                                <div class="w-full h-64 flex items-center justify-center">
+                                    <canvas id="studentProgressChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="bg-white dark:bg-navy-800 p-6 rounded-3xl shadow-xl border border-gold/30 space-y-4">
+                                <h4 class="font-bold text-lg text-navy-800 dark:text-cream"><i class="fa-solid fa-chart-pie text-gold mr-2"></i>Persentase Kuis Selesai</h4>
+                                <div class="w-full h-64 flex items-center justify-center">
+                                    <canvas id="studentQuizPieChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (tab === 'subject_files') {
+                return `
+                    <div class="space-y-6 max-w-4xl mx-auto">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-2xl font-bold serif-font text-navy-800 dark:text-cream">Repository File Mata Pelajaran (RPP, Modul, LKPD)</h2>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            ${db.subjectFiles.map(file => `
+                                <div class="bg-white dark:bg-navy-800 p-6 rounded-3xl shadow-xl border border-gold/30 space-y-4 flex flex-col justify-between">
+                                    <div class="space-y-2">
+                                        <div class="flex justify-between items-start">
+                                            <span class="px-3 py-1 bg-gold/20 text-gold rounded-full text-[10px] font-bold">${file.category}</span>
+                                            <span class="text-xs text-gray-400">${file.size}</span>
+                                        </div>
+                                        <h4 class="font-bold text-base text-navy-800 dark:text-cream">${file.title}</h4>
+                                        <p class="text-xs text-gray-500">Pengunggah: ${file.uploader} | Tanggal: ${file.date}</p>
+                                    </div>
+                                    <button onclick="alert('Mengunduh ${file.title} berhasil!')" class="w-full py-2.5 bg-gold text-navy-900 font-bold rounded-xl text-xs shadow-md hover:bg-cream transition-all flex items-center justify-center space-x-2">
+                                        <i class="fa-solid fa-download"></i><span>Unduh Berkas</span>
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (tab === 'materi') {
+                const ch = db.chapters.find(c => c.id === db.selectedChapter) || db.chapters[0];
+                return `
+                    <div class="space-y-6">
+                        <div class="flex flex-wrap gap-2">
+                            ${db.chapters.map(c => `
+                                <button onclick="selectChapter(${c.id})" class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${db.selectedChapter === c.id ? 'bg-gold text-navy-900 shadow-md' : 'bg-white dark:bg-navy-800 text-gray-600 dark:text-gray-300 border border-gold/20'}">${c.title}</button>
+                            `).join('')}
+                        </div>
+
+                        <div class="bg-white dark:bg-navy-800 p-8 rounded-3xl shadow-xl border border-gold/30 space-y-6">
+                            <div class="space-y-2">
+                                <h2 class="text-2xl font-bold serif-font text-navy-800 dark:text-cream">${ch.title}</h2>
+                                <p class="text-xs text-gray-500">${ch.desc}</p>
+                            </div>
+
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center text-xs text-gold font-bold">
+                                    <span><i class="fa-solid fa-play mr-1"></i> Pemutar Video YouTube Pembelajaran (${ch.videoTitle})</span>
+                                    <a href="https://youtu.be/${ch.videoId}" target="_blank" class="hover:underline flex items-center space-x-1"><i class="fa-solid fa-external-link-alt"></i><span>Buka di YouTube</span></a>
+                                </div>
+                                <div class="aspect-video w-full rounded-2xl overflow-hidden bg-black border border-gold/30 shadow-inner">
+                                    <iframe class="w-full h-full" src="https://www.youtube.com/embed/${ch.videoId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                                </div>
+                            </div>
+
+                            <div class="p-6 bg-softgray dark:bg-navy-900 rounded-2xl border border-gold/20 space-y-3">
+                                <h4 class="font-bold text-sm text-navy-800 dark:text-cream"><i class="fa-solid fa-book-open text-gold mr-2"></i>Ringkasan Artikel & Materi</h4>
+                                <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">${ch.article}</p>
+                            </div>
+
+                            <div class="pt-4 border-t border-gray-200 dark:border-navy-900 flex justify-between items-center">
+                                <span class="text-xs text-gray-500">Unduh dokumen pendukung bab ini:</span>
+                                <button onclick="alert('Mengunduh materi ${ch.title} dalam format PDF...')" class="px-5 py-2.5 bg-gold text-navy-900 font-bold rounded-xl text-xs shadow-md hover:bg-cream transition-all flex items-center space-x-2">
+                                    <i class="fa-solid fa-file-arrow-down"></i><span>Unduh PDF Bab</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (tab === 'quizzes') {
+                const qs = db.quizzes;
+                const qsState = db.quizState;
+                if (qsState.isCompleted) {
+                    const correctCount = Object.keys(qsState.selectedAnswers).filter(idx => qsState.selectedAnswers[idx] === qs[idx].correct).length;
+                    const finalScore = correctCount * 10;
+                    return `
+                        <div class="space-y-6 max-w-3xl mx-auto">
+                            <div class="bg-white dark:bg-navy-800 p-8 rounded-3xl shadow-xl border border-gold/30 text-center space-y-4">
+                                <div class="w-20 h-20 bg-gold/20 text-gold rounded-full mx-auto flex items-center justify-center text-3xl font-bold">🏆</div>
+                                <h2 class="text-3xl font-bold serif-font text-navy-800 dark:text-cream">Game Kartun Kuis Selesai!</h2>
+                                <p class="text-lg font-bold text-gold">Skor Anda: ${finalScore} / 100 (${correctCount} Benar dari 10 Soal)</p>
+                                <div class="text-left space-y-4 pt-4 border-t border-gray-200 dark:border-navy-900">
+                                    <h3 class="font-bold text-base text-navy-800 dark:text-cream">Kunci Jawaban & Pembahasan:</h3>
+                                    ${qs.map((q, idx) => `
+                                        <div class="p-4 bg-softgray dark:bg-navy-900 rounded-2xl space-y-1">
+                                            <p class="font-bold text-xs text-navy-800 dark:text-cream">Soal ${idx+1}: ${q.question}</p>
+                                            <p class="text-xs text-emerald-500 font-semibold">Jawaban Benar: ${q.options[q.correct]}</p>
+                                            <p class="text-xs text-gray-500">Pembahasan: ${q.explanation}</p>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <button onclick="resetQuiz()" class="px-6 py-3 bg-gold text-navy-900 font-bold rounded-xl text-xs">Ulangi Game Kuis</button>
+                            </div>
+                        </div>
+                    `;
+                }
+                const currentQ = qs[qsState.currentIdx];
+                return `
+                    <div class="space-y-6 max-w-2xl mx-auto">
+                        <div class="bg-white dark:bg-navy-800 p-8 rounded-3xl shadow-xl border border-gold/30 space-y-6 text-center relative overflow-hidden">
+                            <!-- Walking Cartoon Mascot Arena -->
+                            <div class="w-full h-32 bg-gradient-to-r from-navy-900 to-navy-800 rounded-2xl relative overflow-hidden border border-gold/30 flex items-center px-6 shadow-inner">
+                                <div class="absolute text-4xl animate-walking-mascot select-none">🦊</div>
+                                <div class="absolute right-4 top-4 bg-white/10 backdrop-blur-md px-3 py-1 rounded-xl text-[10px] text-gold font-bold">Game Arena Sejarah</div>
+                                <div class="absolute bottom-2 left-6 right-6 text-center text-xs text-cream italic">"${qsState.mascotMessage}"</div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center text-xs font-bold text-gray-400 border-b border-gray-200 dark:border-navy-900 pb-3">
+                                <span>Soal ${qsState.currentIdx + 1} dari 10 (Game Kartun Kurikulum Merdeka)</span>
+                                <span class="text-gold">Poin: ${(qsState.currentIdx)*10}</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-navy-800 dark:text-cream text-left">${currentQ.question}</h3>
+                            <div class="space-y-3">
+                                ${currentQ.options.map((opt, oIdx) => `
+                                    <button onclick="answerQuiz(${oIdx})" class="w-full text-left p-4 rounded-xl bg-softgray dark:bg-navy-900 hover:bg-gold hover:text-navy-900 transition-all text-xs font-semibold border border-gold/20 shadow-sm flex items-center justify-between">
+                                        <span>${opt}</span>
+                                        <i class="fa-solid fa-gamepad text-gold opacity-60"></i>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (tab === 'assignments') {
+                return `
+                    <div class="space-y-6">
+                        <h2 class="text-2xl font-bold serif-font text-navy-800 dark:text-cream">Pengumpulan Tugas Siswa</h2>
+                        <div class="space-y-4">
+                            ${db.assignments.map(as => {
+                                const sub = db.submissions.find(s => s.assignmentId === as.id && s.studentId === db.currentUser.id);
+                                return `
+                                    <div class="bg-white dark:bg-navy-800 p-6 rounded-2xl shadow-md border border-gold/30 space-y-3">
+                                        <div class="flex justify-between items-start">
+                                            <div>
+                                                <h4 class="font-bold text-lg text-navy-800 dark:text-cream">${as.title}</h4>
+                                                <p class="text-xs text-gray-500">Deadline: ${as.deadline}</p>
+                                            </div>
+                                            <span class="px-3 py-1 bg-gold/20 text-gold rounded-full text-xs font-bold">${sub ? sub.status : 'Belum Dikumpulkan'}</span>
+                                        </div>
+                                        <p class="text-xs text-gray-600 dark:text-gray-300">${as.description}</p>
+                                        ${as.attachedFile ? `
+                                            <div class="p-3 bg-softgray dark:bg-navy-900 rounded-xl border border-gold/20 flex items-center justify-between">
+                                                <div class="flex items-center space-x-2 text-xs"><i class="fa-solid fa-file-pdf text-gold"></i><span>Lampiran Guru: <b>${as.attachedFile}</b></span></div>
+                                                <button onclick="alert('Mengunduh lampiran tugas guru berhasil!')" class="px-3 py-1.5 bg-gold text-navy-900 font-bold rounded-lg text-xs">Unduh Lampiran</button>
+                                            </div>
+                                        ` : ''}
+                                        <div class="pt-2 border-t border-gray-100 dark:border-navy-900 flex flex-col sm:flex-row justify-between items-center gap-3">
+                                            <div class="text-xs text-gray-500">
+                                                ${sub ? `File: <span class="text-gold font-bold">${sub.fileName}</span>` : 'Belum ada file.'}
+                                                ${sub && sub.score !== null ? ` | <span class="text-emerald-400 font-bold">Nilai: ${sub.score}</span>` : ''}
+                                            </div>
+                                            <input type="file" id="file_${as.id}" class="text-xs text-gray-500 file:py-2 file:px-4 file:rounded-xl file:bg-gold file:text-navy-900">
+                                            <button onclick="submitAssignment('${as.id}')" class="px-4 py-2 bg-gold text-navy-900 font-bold rounded-xl text-xs shadow-md">Kirim Tugas</button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (tab === 'attendance') {
+                return `
+                    <div class="space-y-6 max-w-xl mx-auto text-center">
+                        <div class="bg-white dark:bg-navy-800 p-8 rounded-3xl shadow-xl border border-gold/30 space-y-4">
+                            <h2 class="text-2xl font-bold serif-font text-navy-800 dark:text-cream">Absensi Kamera Biometrik</h2>
+                            <div class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden border-2 border-gold/40 flex items-center justify-center">
+                                <video id="cameraStream" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                                <div id="cameraPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-navy-900 text-gray-400 space-y-2">
+                                    <i class="fa-solid fa-camera text-4xl text-gold"></i>
+                                    <p class="text-xs">Klik nyalakan kamera untuk presensi.</p>
+                                </div>
+                                <canvas id="snapshotCanvas" class="hidden"></canvas>
+                            </div>
+                            <div id="snapshotPreviewContainer" class="hidden space-y-2">
+                                <img id="snapshotImage" class="w-40 h-30 object-cover mx-auto rounded-xl border border-gold">
+                            </div>
+                            <div class="flex justify-center gap-4">
+                                <button id="btnStartCam" onclick="startCamera()" class="px-5 py-2.5 bg-gold/20 text-gold font-bold rounded-xl text-xs border border-gold/40">Nyalakan Kamera</button>
+                                <button id="btnCapture" onclick="takeAttendancePhoto()" class="px-5 py-2.5 bg-gold text-navy-900 font-bold rounded-xl text-xs hidden">Ambil Foto & Kirim Presensi</button>
+                            </div>
+                            <div id="attendanceStatusMsg" class="text-xs font-semibold"></div>
+                        </div>
+                    </div>
+                `;
+            } else if (tab === 'ai') {
+                return `
+                    <div class="space-y-6 max-w-3xl mx-auto">
+                        <h2 class="text-2xl font-bold serif-font text-navy-800 dark:text-cream">Tanya AI & Live Chat Guru</h2>
+                        <div class="bg-white dark:bg-navy-800 p-6 rounded-3xl shadow-xl border border-gold/30 space-y-4">
+                            <div class="h-64 overflow-y-auto space-y-3 p-4 bg-softgray dark:bg-navy-900 rounded-2xl text-xs" id="chatBox">
+                                ${db.chats.map(c => `
+                                    <div class="p-3 bg-white dark:bg-navy-800 rounded-xl space-y-1">
+                                        <div class="flex justify-between font-bold text-gold"><span>${c.sender} (${c.role})</span><span class="text-[10px] text-gray-400">${c.time}</span></div>
+                                        <p class="text-gray-700 dark:text-gray-200">${c.text}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="chatInput" placeholder="Ketik pesan atau tanyakan pada AI..." class="flex-grow p-3 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs">
+                                <button onclick="sendChatMessage()" class="px-6 py-3 bg-gold text-navy-900 font-bold rounded-xl text-xs">Kirim</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (tab === 'leaderboard') {
+                return `
+                    <div class="space-y-6 max-w-3xl mx-auto">
+                        <h2 class="text-2xl font-bold serif-font text-navy-800 dark:text-cream">Mascot Leaderboard</h2>
+                        <div class="bg-white dark:bg-navy-800 p-6 rounded-3xl shadow-xl border border-gold/30 space-y-4">
+                            ${db.leaderboard.map(item => `
+                                <div class="flex items-center justify-between p-4 bg-softgray dark:bg-navy-900 rounded-2xl border border-gold/20">
+                                    <div class="flex items-center space-x-4">
+                                        <span class="w-8 h-8 rounded-full bg-gold text-navy-900 font-bold flex items-center justify-center text-sm">${item.rank}</span>
+                                        <img src="${item.avatar}" class="w-10 h-10 rounded-full object-cover">
+                                        <div><h4 class="font-bold text-sm text-navy-800 dark:text-cream">${item.name} <span class="text-xs text-gold ml-2">${item.mascot}</span></h4><p class="text-xs text-gray-500">${item.class} | ${item.level}</p></div>
+                                    </div>
+                                    <span class="text-lg font-bold text-gold">${item.points} Poin</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            return '';
+        }
+
+        // ==========================================
+        // TEACHER PORTAL
+        // ==========================================
+        function renderTeacherPortal() {
+            return `
+                <div class="flex min-h-screen bg-softgray dark:bg-navy-900">
+                    <aside class="w-64 bg-navy-800 text-white flex flex-col shadow-2xl border-r border-gold/20 hidden md:flex">
+                        <div class="p-6 border-b border-gold/20 flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-gold text-navy-900 rounded-xl flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-chalkboard-user"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold serif-font text-cream">HistoriaLMS</h3>
+                                <p class="text-xs text-gold">Portal Guru Sejarah</p>
+                            </div>
+                        </div>
+                        <nav class="flex-grow p-4 space-y-1.5 text-sm overflow-y-auto">
+                            <a href="#" onclick="setTeacherTab('dashboard'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'dashboard' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-house w-5"></i><span>Dashboard Guru</span></a>
+                            <a href="#" onclick="setTeacherTab('upload_material'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'upload_material' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-cloud-arrow-up w-5"></i><span>Upload Materi & RPP</span></a>
+                            <a href="#" onclick="setTeacherTab('create_assignment'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'create_assignment' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-circle-plus w-5"></i><span>Buat Tugas Baru</span></a>
+                            <a href="#" onclick="setTeacherTab('grading'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'grading' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-clipboard-check w-5"></i><span>Pemeriksaan Tugas & Nilai</span></a>
+                            <a href="#" onclick="setTeacherTab('attendance'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'attendance' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-camera-retro w-5"></i><span>Data Absensi (30 Siswa)</span></a>
+                            <a href="#" onclick="setTeacherTab('quiz_analytics'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'quiz_analytics' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-chart-pie w-5"></i><span>Hasil Kuis & Leaderboard</span></a>
+                            <a href="#" onclick="setTeacherTab('chat'); return false;" class="flex items-center space-x-3 px-4 py-3 rounded-xl ${db.activePortalTab === 'chat' ? 'bg-gold text-navy-900 font-bold' : 'hover:bg-white/10 text-gray-300'}"><i class="fa-solid fa-comments w-5"></i><span>Live Chat Siswa</span></a>
+                        </nav>
+                        <div class="p-4 border-t border-gold/20">
+                            <button onclick="logout()" class="w-full py-2.5 bg-red-500/20 text-red-400 font-bold rounded-xl hover:bg-red-500 hover:text-white transition-all text-sm flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-right-from-bracket"></i><span>Keluar</span>
+                            </button>
+                        </div>
+                    </aside>
+
+                    <div class="flex-grow flex flex-col">
+                        <header class="bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-gold/20 p-4 flex justify-between items-center shadow-sm">
+                            <div class="flex items-center space-x-4">
+                                <img src="${db.currentUser.avatar}" class="w-10 h-10 rounded-full object-cover border border-gold">
+                                <div>
+                                    <h4 class="font-bold text-navy-800 dark:text-cream">${db.currentUser.name}</h4>
+                                    <p class="text-xs text-gray-500">Guru Pengampu Sejarah Kelas X</p>
+                                </div>
+                            </div>
+                            <button onclick="toggleTheme()" class="p-2 bg-softgray dark:bg-navy-900 rounded-xl text-gold"><i class="fa-solid ${db.theme === 'dark' ? 'fa-sun' : 'fa-moon'}"></i></button>
+                        </header>
+                        <main class="p-6 flex-grow overflow-y-auto">
+                            ${renderTeacherTabContent()}
+                        </main>
+                    </div>
+                </div>
+            `;
+        }
+
+        function setTeacherTab(tab) {
+            db.activePortalTab = tab;
+            saveDB();
+            renderApp();
+        }
+
+        function renderTeacherTabContent() {
+            const tab = db.activePortalTab;
+            if (tab === 'dashboard') {
+                return `
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                            <div class="bg-white dark:bg-navy-800 p-6 rounded-2xl shadow-md border border-gold/20 space-y-2">
+                                <span class="text-xs text-gray-400">Total Siswa Terdaftar</span>
+                                <h3 class="text-3xl font-bold text-gold">${db.users.filter(u => u.role === 'student').length}</h3>
+                            </div>
+                            <div class="bg-white dark:bg-navy-800 p-6 rounded-2xl shadow-md border border-gold/20 space-y-2">
+                                <span class="text-xs text-gray-400">Tugas Masuk</span>
+                                <h3 class="text-3xl font-bold text-navy-800 dark:text-cream">${db.submissions.length}</h3>
+                            </div>
+                            <div class="bg-white dark:bg-navy-800 p-6 rounded-2xl shadow-md border border-gold/20 space-y-2">
+                                <span class="text-xs text-gray-400">Kehadiran Total</span>
+                                <h3 class="text-3xl font-bold text-emerald-400">${db.attendance.length} Siswa</h3>
+                            </div>
+                            <div class="bg-white dark:bg-navy-800 p-6 rounded-2xl shadow-md border border-gold/20 space-y-2">
+                                <span class="text-xs text-gray-400">Rata-Rata Nilai</span>
+                                <h3 class="text-3xl font-bold text-gold">89.0</h3>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="bg-white dark:bg-navy-800 p-6 rounded-3xl shadow-xl border border-gold/30 space-y-4">
+                                <h4 class="font-bold text-lg text-navy-800 dark:text-cream"><i class="fa-solid fa-chart-bar text-gold mr-2"></i>Grafik Nilai Kelas X Sejarah</h4>
+                                <div class="w-full h-64 flex items-center justify-center">
+                                    <canvas id="teacherGradeChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="bg-white dark:bg-navy-800 p-6 rounded-3xl shadow-xl border border-gold/30 space-y-4">
+                                <h4 class="font-bold text-lg text-navy-800 dark:text-cream"><i class="fa-solid fa-chart-pie text-gold mr-2"></i>Persentase Kehadiran Siswa</h4>
+                                <div class="w-full h-64 flex items-center justify-center">
+                                    <canvas id="teacherAttendanceChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (tab === 'upload_material') {
+                return `
+                    <div class="space-y-6 max-w-2xl mx-auto">
+                        <div class="bg-white dark:bg-navy-800 p-8 rounded-3xl shadow-xl border border-gold/30 space-y-6">
+                            <h2 class="text-2xl font-bold serif-font text-navy-800 dark:text-cream">Upload RPP, Modul & Materi Pembelajaran</h2>
+                            <form onsubmit="handleUploadMaterial(event)" class="space-y-4">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Judul Berkas / Modul</label>
+                                    <input type="text" id="matTitle" required placeholder="Contoh: RPP Bab 3 Sejarah Kelas X" class="w-full p-3 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Kategori Berkas</label>
+                                    <select id="matCategory" class="w-full p-3 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs">
+                                        <option value="RPP Guru">RPP Guru</option>
+                                        <option value="Modul Ajar">Modul Ajar</option>
+                                        <option value="LKPD">LKPD</option>
+                                        <option value="Silabus">Silabus</option>
+                                        <option value="Materi Utama">Materi Utama</option>
+                                    </select>
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Pilih Berkas File (PDF/DOCX)</label>
+                                    <input type="file" id="matFile" required class="w-full p-3 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs file:bg-gold file:text-navy-900 file:rounded-lg file:border-0 file:py-1 file:px-3">
+                                </div>
+                                <button type="submit" class="w-full py-3.5 bg-gold text-navy-900 font-bold rounded-xl text-xs shadow-xl hover:bg-cream transition-all">Upload ke Portal Siswa & Guru</button>
+                            </form>
+                        </div>
+                    </div>
+                `;
+            } else if (tab === 'create_assignment') {
+                return `
+                    <div class="space-y-6 max-w-2xl mx-auto">
+                        <div class="bg-white dark:bg-navy-800 p-8 rounded-3xl shadow-xl border border-gold/30 space-y-6">
+                            <h2 class="text-2xl font-bold serif-font text-navy-800 dark:text-cream">Buat Tugas Baru dengan Lampiran File</h2>
+                            <form onsubmit="handleCreateAssignment(event)" class="space-y-4">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Judul Tugas</label>
+                                    <input type="text" id="newAsTitle" required placeholder="Contoh: Analisis Bab 3" class="w-full p-3 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Deskripsi & Petunjuk</label>
+                                    <textarea id="newAsDesc" required rows="4" placeholder="Instruksi pengerjaan..." class="w-full p-3 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs"></textarea>
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Lampirkan File Pendukung Tugas (PDF/DOCX)</label>
+                                    <input type="file" id="newAsFile" class="w-full p-3 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs file:bg-gold file:text-navy-900 file:rounded-lg file:border-0 file:py-1 file:px-3">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Deadline</label>
+                                        <input type="datetime-local" id="newAsDeadline" required class="w-full p-3 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs">
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-semibold text-gray-600 dark:text-gray-300">Kelas</label>
+                                        <select id="newAsClass" class="w-full p-3 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs">
+                                            <option value="X-IPS-1">X-IPS-1</option>
+                                            <option value="X-IPS-2">X-IPS-2</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full py-3.5 bg-gold text-navy-900 font-bold rounded-xl text-xs shadow-xl hover:bg-cream transition-all">Publikasikan Tugas</button>
+                            </form>
+                        </div>
+                    </div>
+                `;
+            } else if (tab === 'grading') {
+                return `
+                    <div class="space-y-6 max-w-4xl mx-auto">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-2xl font-bold serif-font text-navy-800 dark:text-cream">Pemeriksaan Tugas & Upload Materi</h2>
+                            <button onclick="setTeacherTab('upload_material')" class="px-4 py-2 bg-gold text-navy-900 font-bold rounded-xl text-xs shadow-md">+ Upload Materi Baru</button>
+                        </div>
+                        
+                        <div class="bg-white dark:bg-navy-800 p-6 rounded-3xl shadow-xl border border-gold/30 space-y-4">
+                            <h3 class="font-bold text-lg text-navy-800 dark:text-cream">Daftar Tugas Masuk Siswa</h3>
+                            ${db.submissions.map(sub => `
+                                <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-softgray dark:bg-navy-900 rounded-2xl border border-gold/20 gap-4">
+                                    <div><h4 class="font-bold text-sm text-navy-800 dark:text-cream">${sub.studentName} - NISN: ${sub.nisn}</h4><p class="text-xs text-gray-500">File Tugas: <span class="text-gold font-bold">${sub.fileName}</span></p></div>
+                                    <div class="flex items-center gap-2 w-full md:w-auto">
+                                        <input type="number" id="score_${sub.id}" value="${sub.score || ''}" placeholder="Nilai" class="p-2 rounded-xl bg-white dark:bg-navy-800 border border-gold/30 text-xs w-20">
+                                        <input type="text" id="feedback_${sub.id}" value="${sub.feedback || ''}" placeholder="Umpan balik..." class="p-2 rounded-xl bg-white dark:bg-navy-800 border border-gold/30 text-xs flex-grow">
+                                        <button onclick="gradeSubmission('${sub.id}')" class="px-4 py-2 bg-gold text-navy-900 font-bold rounded-xl text-xs">Simpan</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (tab === 'attendance') {
+                return `
+                    <div class="space-y-6">
+                        <h2 class="text-2xl font-bold serif-font text-navy-800 dark:text-cream">Data Absensi Siswa (30 Siswa Terdaftar)</h2>
+                        <div class="bg-white dark:bg-navy-800 p-6 rounded-3xl shadow-xl border border-gold/30 space-y-4">
+                            ${db.attendance.map(att => `
+                                <div class="flex items-center justify-between p-4 bg-softgray dark:bg-navy-900 rounded-2xl border border-gold/20">
+                                    <div class="flex items-center space-x-4">
+                                        <img src="${att.photo}" class="w-12 h-12 rounded-xl object-cover border border-gold">
+                                        <div><h4 class="font-bold text-sm text-navy-800 dark:text-cream">${att.studentName} (${att.nisn})</h4><p class="text-xs text-gray-500">Kelas: ${att.className} | Tanggal: ${att.date} | Waktu: ${att.time}</p></div>
+                                    </div>
+                                    <span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-bold">${att.status}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (tab === 'quiz_analytics') {
+                return `
+                    <div class="space-y-6 max-w-4xl mx-auto">
+                        <h2 class="text-2xl font-bold serif-font text-navy-800 dark:text-cream">Hasil Kuis & Mascot Leaderboard</h2>
+                        <div class="bg-white dark:bg-navy-800 p-6 rounded-3xl shadow-xl border border-gold/30 space-y-4">
+                            ${db.leaderboard.map(item => `
+                                <div class="flex items-center justify-between p-4 bg-softgray dark:bg-navy-900 rounded-2xl border border-gold/20">
+                                    <div class="flex items-center space-x-4">
+                                        <span class="w-8 h-8 rounded-full bg-gold text-navy-900 font-bold flex items-center justify-center text-sm">${item.rank}</span>
+                                        <img src="${item.avatar}" class="w-10 h-10 rounded-full object-cover">
+                                        <div><h4 class="font-bold text-sm text-navy-800 dark:text-cream">${item.name} <span class="text-xs text-gold ml-2">${item.mascot}</span></h4><p class="text-xs text-gray-500">${item.class} | ${item.level}</p></div>
+                                    </div>
+                                    <span class="text-lg font-bold text-gold">${item.points} Poin</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (tab === 'chat') {
+                return `
+                    <div class="space-y-6 max-w-3xl mx-auto">
+                        <h2 class="text-2xl font-bold serif-font text-navy-800 dark:text-cream">Live Chat Diskusi Kelas</h2>
+                        <div class="bg-white dark:bg-navy-800 p-6 rounded-3xl shadow-xl border border-gold/30 space-y-4">
+                            <div class="h-64 overflow-y-auto space-y-3 p-4 bg-softgray dark:bg-navy-900 rounded-2xl text-xs" id="chatBoxTeacher">
+                                ${db.chats.map(c => `
+                                    <div class="p-3 bg-white dark:bg-navy-800 rounded-xl space-y-1">
+                                        <div class="flex justify-between font-bold text-gold"><span>${c.sender} (${c.role})</span><span class="text-[10px] text-gray-400">${c.time}</span></div>
+                                        <p class="text-gray-700 dark:text-gray-200">${c.text}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="chatInputTeacher" placeholder="Ketik pengumuman atau balasan..." class="flex-grow p-3 rounded-xl bg-softgray dark:bg-navy-900 border border-gold/30 text-xs">
+                                <button onclick="sendChatMessageTeacher()" class="px-6 py-3 bg-gold text-navy-900 font-bold rounded-xl text-xs">Kirim</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            return '';
+        }
+
+        function handleUploadMaterial(e) {
+            e.preventDefault();
+            const title = document.getElementById('matTitle').value;
+            const category = document.getElementById('matCategory').value;
+            const fileInput = document.getElementById('matFile');
+            const fileName = fileInput.files.length > 0 ? fileInput.files[0].name : 'Dokumen.pdf';
+
+            db.subjectFiles.unshift({
+                id: 'sf_' + Date.now(),
+                title,
+                category,
+                size: '2.5 MB',
+                uploader: db.currentUser.name,
+                date: new Date().toISOString().split('T')[0]
+            });
+            saveDB();
+            alert('Berkas materi / RPP berhasil diunggah dan langsung tersinkron di Portal Siswa!');
+            setTeacherTab('dashboard');
+        }
+
+        function handleCreateAssignment(e) {
+            e.preventDefault();
+            const title = document.getElementById('newAsTitle').value;
+            const desc = document.getElementById('newAsDesc').value;
+            const deadline = document.getElementById('newAsDeadline').value;
+            const className = document.getElementById('newAsClass').value;
+            const fileInput = document.getElementById('newAsFile');
+            const attachedFileName = fileInput.files.length > 0 ? fileInput.files[0].name : null;
+
+            db.assignments.unshift({
+                id: 'as_' + Date.now(),
+                title,
+                description: desc,
+                deadline,
+                class: className,
+                author: db.currentUser.name,
+                attachedFile: attachedFileName
+            });
+            saveDB();
+            alert('Tugas dengan lampiran file berhasil dibuat dan langsung muncul di Portal Siswa!');
+            setTeacherTab('grading');
+        }
+
+        function renderAdminPortal() {
+            return `
+                <div class="flex min-h-screen bg-softgray dark:bg-navy-900">
+                    <aside class="w-64 bg-navy-800 text-white flex flex-col shadow-2xl border-r border-gold/20">
+                        <div class="p-6 border-b border-gold/20 flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-gold text-navy-900 rounded-xl flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold serif-font text-cream">HistoriaLMS</h3>
+                                <p class="text-xs text-gold">Portal Admin</p>
+                            </div>
+                        </div>
+                        <nav class="flex-grow p-4 space-y-1.5 text-sm">
+                            <a href="#" class="flex items-center space-x-3 px-4 py-3 rounded-xl bg-gold text-navy-900 font-bold"><i class="fa-solid fa-users w-5"></i><span>Kelola Pengguna (${db.users.length} Akun)</span></a>
+                        </nav>
+                        <div class="p-4 border-t border-gold/20">
+                            <button onclick="logout()" class="w-full py-2.5 bg-red-500/20 text-red-400 font-bold rounded-xl text-sm">Keluar</button>
+                        </div>
+                    </aside>
+                    <main class="flex-grow p-6 space-y-6 overflow-y-auto">
+                        <h2 class="text-2xl font-bold serif-font text-navy-800 dark:text-cream">Manajemen Seluruh Pengguna</h2>
+                        <div class="bg-white dark:bg-navy-800 p-6 rounded-3xl shadow-xl border border-gold/30 space-y-4">
+                            ${db.users.map(u => `
+                                <div class="flex justify-between items-center p-4 bg-softgray dark:bg-navy-900 rounded-2xl border border-gold/20">
+                                    <div class="flex items-center space-x-3">
+                                        <img src="${u.avatar}" class="w-10 h-10 rounded-full object-cover">
+                                        <div><h4 class="font-bold text-sm text-navy-800 dark:text-cream">${u.name}</h4><p class="text-xs text-gray-500">${u.email} | Kelas: ${u.class}</p></div>
+                                    </div>
+                                    <span class="px-3 py-1 bg-gold/20 text-gold rounded-full text-xs font-bold uppercase">${u.role}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </main>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // QUIZ LOGIC & CAMERA ATTENDANCE
+        // ==========================================
+        function answerQuiz(optIdx) {
+            const qs = db.quizzes;
+            const qsState = db.quizState;
+            qsState.selectedAnswers[qsState.currentIdx] = optIdx;
+
+            if (optIdx === qs[qsState.currentIdx].correct) {
+                playSound('correct');
+                confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+                qsState.mascotExpression = 'celebrating';
+                qsState.mascotMessage = 'Hebat! Jawaban benar & maskot maju ke level berikutnya!';
+            } else {
+                playSound('wrong');
+                qsState.mascotExpression = 'thinking';
+                qsState.mascotMessage = 'Kurang tepat! Perhatikan pembahasan sejarah ya.';
+            }
+
+            if (qsState.currentIdx < qs.length - 1) {
+                qsState.currentIdx++;
+            } else {
+                qsState.isCompleted = true;
+                const correctCount = Object.keys(qsState.selectedAnswers).filter(idx => qsState.selectedAnswers[idx] === qs[idx].correct).length;
+                const earnedPoints = correctCount * 10;
+                db.currentUser.points = (db.currentUser.points || 1000) + earnedPoints;
+                const lbEntry = db.leaderboard.find(l => l.name === db.currentUser.name);
+                if (lbEntry) {
+                    lbEntry.points += earnedPoints;
+                } else {
+                    db.leaderboard.push({ rank: db.leaderboard.length+1, name: db.currentUser.name, class: db.currentUser.class, points: 1000+earnedPoints, level: 'History Genius', avatar: db.currentUser.avatar, mascot: '🦊 Explorer' });
+                }
+                db.leaderboard.sort((a,b) => b.points - a.points);
+                db.leaderboard.forEach((item, i) => item.rank = i+1);
+            }
+            saveDB();
+            renderApp();
+        }
+
+        function resetQuiz() {
+            db.quizState = { currentIdx: 0, score: 0, selectedAnswers: {}, isCompleted: false, mascotExpression: 'happy', mascotMessage: 'Ayo mulai game kartun kuis lagi!' };
+            saveDB();
+            renderApp();
+        }
+
+        let cameraStreamObj = null;
+        async function startCamera() {
+            const video = document.getElementById('cameraStream');
+            const placeholder = document.getElementById('cameraPlaceholder');
+            const btnCapture = document.getElementById('btnCapture');
+            const btnStartCam = document.getElementById('btnStartCam');
+
+            try {
+                cameraStreamObj = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                video.srcObject = cameraStreamObj;
+                placeholder.classList.add('hidden');
+                btnCapture.classList.remove('hidden');
+                btnStartCam.classList.add('hidden');
+            } catch(e) {
+                alert('Kamera tidak tersedia atau izin ditolak.');
+            }
+        }
+
+        function takeAttendancePhoto() {
+            const video = document.getElementById('cameraStream');
+            const canvas = document.getElementById('snapshotCanvas');
+            const snapshotImage = document.getElementById('snapshotImage');
+            const previewContainer = document.getElementById('snapshotPreviewContainer');
+            const statusMsg = document.getElementById('attendanceStatusMsg');
+
+            canvas.width = 320; canvas.height = 240;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, 320, 240);
+            const photoData = canvas.toDataURL('image/png');
+
+            snapshotImage.src = photoData;
+            previewContainer.classList.remove('hidden');
+
+            if (cameraStreamObj) {
+                cameraStreamObj.getTracks().forEach(t => t.stop());
+            }
+
+            const now = new Date();
+            db.attendance.unshift({
+                id: 'att_' + Date.now(),
+                studentId: db.currentUser.id,
+                studentName: db.currentUser.name,
+                nisn: db.currentUser.nisn,
+                className: db.currentUser.class,
+                date: now.toISOString().split('T')[0],
+                time: now.toTimeString().split(' ')[0],
+                photo: photoData,
+                status: 'Hadir'
+            });
+            saveDB();
+            statusMsg.innerHTML = '<span class="text-emerald-400 font-bold">Presensi berhasil dikirim dan tersinkron ke Guru!</span>';
+        }
+
+        function submitAssignment(asId) {
+            db.submissions.unshift({
+                id: 'sub_' + Date.now(),
+                assignmentId: asId,
+                studentId: db.currentUser.id,
+                studentName: db.currentUser.name,
+                nisn: db.currentUser.nisn,
+                className: db.currentUser.class,
+                fileName: 'Tugas_Sejarah_Siswa.pdf',
+                date: '2026-10-31 09:00',
+                status: 'Menunggu Penilaian',
+                score: null,
+                feedback: ''
+            });
+            saveDB();
+            alert('Tugas berhasil dikirim ke portal Guru!');
+            renderApp();
+        }
+
+        function gradeSubmission(subId) {
+            const score = parseInt(document.getElementById('score_' + subId).value);
+            const feedback = document.getElementById('feedback_' + subId).value;
+            const sub = db.submissions.find(s => s.id === subId);
+            if (sub) {
+                sub.score = score;
+                sub.feedback = feedback;
+                sub.status = 'Sudah Dinilai';
+                saveDB();
+                alert('Nilai dan umpan balik berhasil disimpan dan disinkronkan ke Siswa!');
+                renderApp();
+            }
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            if (!input || !input.value.trim()) return;
+            const txt = input.value.trim();
+            const now = new Date().toTimeString().split(' ')[0].substring(0,5);
+
+            db.chats.push({
+                id: 'c_' + Date.now(),
+                sender: db.currentUser.name,
+                role: db.currentUser.role,
+                text: txt,
+                time: now
+            });
+
+            if (txt.toLowerCase().includes('apa') || txt.toLowerCase().includes('siapa') || txt.toLowerCase().includes('jelaskan')) {
+                db.chats.push({
+                    id: 'ai_' + Date.now(),
+                    sender: 'AI History Tutor',
+                    role: 'ai',
+                    text: `Halo ${db.currentUser.name}, berdasarkan Kurikulum Merdeka Sejarah Kelas X, pertanyaan tersebut berkaitan dengan materi Bab 1-5. Tetap semangat belajar!`,
+                    time: now
+                });
+            }
+
+            saveDB();
+            input.value = '';
+            renderApp();
+        }
+
+        function sendChatMessageTeacher() {
+            const input = document.getElementById('chatInputTeacher');
+            if (!input || !input.value.trim()) return;
+            const txt = input.value.trim();
+            const now = new Date().toTimeString().split(' ')[0].substring(0,5);
+
+            db.chats.push({
+                id: 'c_' + Date.now(),
+                sender: db.currentUser.name,
+                role: db.currentUser.role,
+                text: txt,
+                time: now
+            });
+            saveDB();
+            input.value = '';
+            renderApp();
+        }
+
+        // ==========================================
+        // CHART INITIALIZERS
+        // ==========================================
+        function initStudentCharts() {
+            const ctx1 = document.getElementById('studentProgressChart');
+            if (ctx1) {
+                new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Bab 1', 'Bab 2', 'Bab 3', 'Bab 4', 'Bab 5'],
+                        datasets: [{ label: 'Progress (%)', data: [100, 85, 70, 60, 40], backgroundColor: '#C6A45C' }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+            const ctx2 = document.getElementById('studentQuizPieChart');
+            if (ctx2) {
+                new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Selesai', 'Belum Selesai'],
+                        datasets: [{ data: [8, 2], backgroundColor: ['#C6A45C', '#14243D'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+        }
+
+        function initTeacherCharts() {
+            const ctx1 = document.getElementById('teacherGradeChart');
+            if (ctx1) {
+                new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: ['Tugas 1', 'Tugas 2', 'Kuis 1', 'Kuis 2'],
+                        datasets: [{ label: 'Rata-rata Nilai Kelas', data: [85, 88, 90, 92], borderColor: '#C6A45C', tension: 0.3 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+            const ctx2 = document.getElementById('teacherAttendanceChart');
+            if (ctx2) {
+                new Chart(ctx2, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Hadir', 'Izin/Sakit', 'Alpha'],
+                        datasets: [{ data: [30, 0, 0], backgroundColor: ['#10B981', '#F59E0B', '#EF4444'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+        }
+
+        window.onload = function() {
+            renderApp();
+        };
+    </script>
+</body>
+</html>
